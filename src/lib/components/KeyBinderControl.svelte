@@ -22,7 +22,6 @@
       } else {
         await startKeyBinder($appState.keys, $appState.keyInterval);
       }
-      $appState.keyBinderRunning = !$appState.keyBinderRunning;
     } catch (e) {
       error = String(e);
     }

@@ -22,7 +22,6 @@
       } else {
         await startClicker($appState.clickerSpeed, $appState.clickerButton);
       }
-      $appState.clickerRunning = !$appState.clickerRunning;
     } catch (e) {
       error = String(e);
     }
