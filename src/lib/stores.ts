@@ -1,12 +1,18 @@
 import { writable } from "svelte/store";
 
+export interface KeyBind {
+  key: string;
+  intervalMs: number;
+}
+
 export interface AppState {
   clickerRunning: boolean;
   clickerSpeed: number;
   clickerButton: "left" | "right";
   keyBinderRunning: boolean;
-  keys: string;
-  keyInterval: number;
+  keyBinds: KeyBind[];
+  keyIntervalMin: number;
+  keyIntervalMax: number;
 }
 
 export const appState = writable<AppState>({
@@ -14,6 +20,7 @@ export const appState = writable<AppState>({
   clickerSpeed: 100,
   clickerButton: "left",
   keyBinderRunning: false,
-  keys: "bvcxz",
-  keyInterval: 1000,
+  keyBinds: [{ key: "b", intervalMs: 1000 }],
+  keyIntervalMin: 100,
+  keyIntervalMax: 5000,
 });

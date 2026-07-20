@@ -1,11 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
+export interface KeyBind {
+  key: string;
+  interval_ms: number;
+}
+
 export interface AppConfig {
   clicker_speed: number;
   clicker_button: string;
-  keys: string;
-  key_interval: number;
+  key_binds: KeyBind[];
+  key_interval_min_ms: number;
+  key_interval_max_ms: number;
 }
 
 export interface AppStatus {
@@ -18,8 +24,8 @@ export const startClicker = (speedMs: number, button: string) =>
 
 export const stopClicker = () => invoke<void>("stop_clicker");
 
-export const startKeyBinder = (keys: string, intervalMs: number) =>
-  invoke<void>("start_key_binder", { keys, intervalMs });
+export const startKeyBinder = (keyBinds: KeyBind[]) =>
+  invoke<void>("start_key_binder", { keyBinds });
 
 export const stopKeyBinder = () => invoke<void>("stop_key_binder");
 

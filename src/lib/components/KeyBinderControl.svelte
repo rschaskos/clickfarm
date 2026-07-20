@@ -8,13 +8,59 @@
   let countdown = $state(0);
   let cancelRequested = false;
 
+  function msToS(ms: number) {
+    return +(ms / 1000).toFixed(1);
+  }
+  function sToMs(s: number) {
+    return Math.round(s * 1000);
+  }
+
   async function persist() {
     await saveConfig({
       clicker_speed: $appState.clickerSpeed,
       clicker_button: $appState.clickerButton,
-      keys: $appState.keys,
-      key_interval: $appState.keyInterval,
+      key_binds: $appState.keyBinds.map((b) => ({ key: b.key, interval_ms: b.intervalMs })),
+      key_interval_min_ms: $appState.keyIntervalMin,
+      key_interval_max_ms: $appState.keyIntervalMax,
     }).catch(() => {});
+  }
+
+  function addBind() {
+    $appState.keyBinds = [
+      ...$appState.keyBinds,
+      { key: "", intervalMs: $appState.keyIntervalMin },
+    ];
+    persist();
+  }
+
+  function removeBind(index: number) {
+    $appState.keyBinds = $appState.keyBinds.filter((_, i) => i !== index);
+    persist();
+  }
+
+  function updateKey(index: number, value: string) {
+    const char = value.slice(-1);
+    $appState.keyBinds = $appState.keyBinds.map((b, i) =>
+      i === index ? { ...b, key: char } : b,
+    );
+    persist();
+  }
+
+  function updateInterval(index: number, seconds: number) {
+    $appState.keyBinds = $appState.keyBinds.map((b, i) =>
+      i === index ? { ...b, intervalMs: sToMs(seconds) } : b,
+    );
+    persist();
+  }
+
+  function updateMinBound(seconds: number) {
+    $appState.keyIntervalMin = sToMs(seconds);
+    persist();
+  }
+
+  function updateMaxBound(seconds: number) {
+    $appState.keyIntervalMax = sToMs(seconds);
+    persist();
   }
 
   async function toggle() {
@@ -36,9 +82,11 @@
     }
 
     cancelRequested = false;
-    for (let i = startDelay; i > 0; i--) {
-      countdown = i;
-      await new Promise((r) => setTimeout(r, 1000));
+    let remainingMs = sToMs(startDelay);
+    while (remainingMs > 0) {
+      countdown = msToS(remainingMs);
+      await new Promise((r) => setTimeout(r, 100));
+      remainingMs -= 100;
       if (cancelRequested) {
         countdown = 0;
         return;
@@ -47,7 +95,9 @@
     countdown = 0;
 
     try {
-      await startKeyBinder($appState.keys, $appState.keyInterval);
+      await startKeyBinder(
+        $appState.keyBinds.map((b) => ({ key: b.key, interval_ms: b.intervalMs })),
+      );
     } catch (e) {
       error = String(e);
     }
@@ -60,39 +110,92 @@
     <Status running={$appState.keyBinderRunning} label="Keys" />
   </div>
 
-  <label class="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-300">
-    Keys to bind
-    <input
-      type="text"
-      bind:value={$appState.keys}
-      onchange={persist}
+  <div class="flex gap-4">
+    <label class="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-300">
+      Min interval (s)
+      <input
+        type="number"
+        step="0.1"
+        min="0.1"
+        value={msToS($appState.keyIntervalMin)}
+        onchange={(e) => updateMinBound(+(e.currentTarget as HTMLInputElement).value)}
+        disabled={$appState.keyBinderRunning}
+        class="w-24 rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-2 py-1"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-300">
+      Max interval (s)
+      <input
+        type="number"
+        step="0.1"
+        min="0.1"
+        value={msToS($appState.keyIntervalMax)}
+        onchange={(e) => updateMaxBound(+(e.currentTarget as HTMLInputElement).value)}
+        disabled={$appState.keyBinderRunning}
+        class="w-24 rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-2 py-1"
+      />
+    </label>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    {#each $appState.keyBinds as bind, i (i)}
+      <div class="flex items-center gap-2">
+        <input
+          type="text"
+          maxlength="1"
+          value={bind.key}
+          oninput={(e) => updateKey(i, (e.currentTarget as HTMLInputElement).value)}
+          disabled={$appState.keyBinderRunning}
+          placeholder="key"
+          class="w-14 rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-2 py-1 text-center"
+        />
+        <input
+          type="range"
+          min={msToS($appState.keyIntervalMin)}
+          max={msToS($appState.keyIntervalMax)}
+          step="0.1"
+          value={msToS(bind.intervalMs)}
+          oninput={(e) => updateInterval(i, +(e.currentTarget as HTMLInputElement).value)}
+          disabled={$appState.keyBinderRunning}
+          class="flex-1 accent-blue-600"
+        />
+        <input
+          type="number"
+          step="0.1"
+          min={msToS($appState.keyIntervalMin)}
+          max={msToS($appState.keyIntervalMax)}
+          value={msToS(bind.intervalMs)}
+          oninput={(e) => updateInterval(i, +(e.currentTarget as HTMLInputElement).value)}
+          disabled={$appState.keyBinderRunning}
+          class="w-16 rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-2 py-1 text-right text-sm"
+        />
+        <button
+          onclick={() => removeBind(i)}
+          disabled={$appState.keyBinderRunning}
+          class="rounded-md px-2 py-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+          aria-label="Remove key bind"
+        >
+          ×
+        </button>
+      </div>
+    {/each}
+
+    <button
+      onclick={addBind}
       disabled={$appState.keyBinderRunning}
-      placeholder="e.g. bvcxz"
-      class="rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-2 py-1"
-    />
-  </label>
+      class="self-start rounded-md border border-dashed border-neutral-300 dark:border-neutral-600 px-3 py-1 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700"
+    >
+      + Add key
+    </button>
+  </div>
 
   <label class="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-300">
-    Interval: {$appState.keyInterval}ms
-    <input
-      type="range"
-      min="100"
-      max="5000"
-      step="100"
-      bind:value={$appState.keyInterval}
-      onchange={persist}
-      disabled={$appState.keyBinderRunning}
-      class="accent-blue-600"
-    />
-  </label>
-
-  <label class="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-300">
-    Start delay: {startDelay}s
+    Starting in: {startDelay.toFixed(1)}s
     <input
       type="range"
       min="0"
       max="10"
-      step="1"
+      step="0.1"
       bind:value={startDelay}
       disabled={$appState.keyBinderRunning || countdown > 0}
       class="accent-blue-600"
@@ -107,7 +210,7 @@
     class="mt-auto rounded-lg py-2 font-semibold text-white hover:opacity-90 transition"
   >
     {#if countdown > 0}
-      Starting in {countdown}s… (click to cancel)
+      Starting in {countdown.toFixed(1)}s… (click to cancel)
     {:else}
       {$appState.keyBinderRunning ? "Stop Key Binder" : "Start Key Binder"}
     {/if}

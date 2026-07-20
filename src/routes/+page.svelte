@@ -15,8 +15,9 @@
           ...s,
           clickerSpeed: config.clicker_speed,
           clickerButton: config.clicker_button === "right" ? "right" : "left",
-          keys: config.keys,
-          keyInterval: config.key_interval,
+          keyBinds: config.key_binds.map((b) => ({ key: b.key, intervalMs: b.interval_ms })),
+          keyIntervalMin: config.key_interval_min_ms,
+          keyIntervalMax: config.key_interval_max_ms,
         }));
 
         const status = await getStatus();

@@ -3,7 +3,7 @@ mod key_binder;
 mod state;
 
 use serde::Serialize;
-use state::{AppConfig, AppState};
+use state::{AppConfig, AppState, KeyBind};
 use std::sync::atomic::Ordering;
 use tauri::{Emitter, State};
 
@@ -51,14 +51,13 @@ fn stop_clicker(app: tauri::AppHandle, state: State<AppState>) -> Result<(), Str
 fn start_key_binder(
     app: tauri::AppHandle,
     state: State<AppState>,
-    keys: String,
-    interval_ms: u64,
+    key_binds: Vec<KeyBind>,
 ) -> Result<(), String> {
     if state.keys_running.load(Ordering::SeqCst) {
         return Err("key binder already running".into());
     }
-    let handle = key_binder::spawn(keys, interval_ms, state.keys_running.clone())?;
-    *state.keys_handle.lock().map_err(|e| e.to_string())? = Some(handle);
+    let handles = key_binder::spawn(key_binds, state.keys_running.clone())?;
+    *state.keys_handles.lock().map_err(|e| e.to_string())? = handles;
     emit_status(&app, &state);
     Ok(())
 }
@@ -66,7 +65,8 @@ fn start_key_binder(
 #[tauri::command]
 fn stop_key_binder(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
     state.keys_running.store(false, Ordering::SeqCst);
-    if let Some(handle) = state.keys_handle.lock().map_err(|e| e.to_string())?.take() {
+    let handles = std::mem::take(&mut *state.keys_handles.lock().map_err(|e| e.to_string())?);
+    for handle in handles {
         let _ = handle.join();
     }
     emit_status(&app, &state);

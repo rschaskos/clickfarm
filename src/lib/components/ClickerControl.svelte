@@ -8,13 +8,26 @@
   let countdown = $state(0);
   let cancelRequested = false;
 
+  function msToS(ms: number) {
+    return +(ms / 1000).toFixed(1);
+  }
+  function sToMs(s: number) {
+    return Math.round(s * 1000);
+  }
+
   async function persist() {
     await saveConfig({
       clicker_speed: $appState.clickerSpeed,
       clicker_button: $appState.clickerButton,
-      keys: $appState.keys,
-      key_interval: $appState.keyInterval,
+      key_binds: $appState.keyBinds.map((b) => ({ key: b.key, interval_ms: b.intervalMs })),
+      key_interval_min_ms: $appState.keyIntervalMin,
+      key_interval_max_ms: $appState.keyIntervalMax,
     }).catch(() => {});
+  }
+
+  function onSpeedInput(e: Event) {
+    $appState.clickerSpeed = sToMs(+(e.currentTarget as HTMLInputElement).value);
+    persist();
   }
 
   async function toggle() {
@@ -36,9 +49,11 @@
     }
 
     cancelRequested = false;
-    for (let i = startDelay; i > 0; i--) {
-      countdown = i;
-      await new Promise((r) => setTimeout(r, 1000));
+    let remainingMs = sToMs(startDelay);
+    while (remainingMs > 0) {
+      countdown = msToS(remainingMs);
+      await new Promise((r) => setTimeout(r, 100));
+      remainingMs -= 100;
       if (cancelRequested) {
         countdown = 0;
         return;
@@ -61,26 +76,26 @@
   </div>
 
   <label class="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-300">
-    Speed: {$appState.clickerSpeed}ms
+    Speed: {msToS($appState.clickerSpeed).toFixed(1)}s
     <input
       type="range"
-      min="10"
-      max="1000"
-      step="10"
-      bind:value={$appState.clickerSpeed}
-      onchange={persist}
+      min="0.1"
+      max="1"
+      step="0.1"
+      value={msToS($appState.clickerSpeed)}
+      oninput={onSpeedInput}
       disabled={$appState.clickerRunning}
       class="accent-blue-600"
     />
   </label>
 
   <label class="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-300">
-    Start delay: {startDelay}s
+    Starting in: {startDelay.toFixed(1)}s
     <input
       type="range"
       min="0"
       max="10"
-      step="1"
+      step="0.1"
       bind:value={startDelay}
       disabled={$appState.clickerRunning || countdown > 0}
       class="accent-blue-600"
@@ -121,7 +136,7 @@
     class="mt-auto rounded-lg py-2 font-semibold text-white hover:opacity-90 transition"
   >
     {#if countdown > 0}
-      Starting in {countdown}s… (click to cancel)
+      Starting in {countdown.toFixed(1)}s… (click to cancel)
     {:else}
       {$appState.clickerRunning ? "Stop Clicker" : "Start Clicker"}
     {/if}
