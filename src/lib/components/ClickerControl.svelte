@@ -4,6 +4,9 @@
   import Status from "$lib/components/Status.svelte";
 
   let error = $state("");
+  let startDelay = $state(3);
+  let countdown = $state(0);
+  let cancelRequested = false;
 
   async function persist() {
     await saveConfig({
@@ -16,12 +19,35 @@
 
   async function toggle() {
     error = "";
-    try {
-      if ($appState.clickerRunning) {
+
+    if (countdown > 0) {
+      cancelRequested = true;
+      countdown = 0;
+      return;
+    }
+
+    if ($appState.clickerRunning) {
+      try {
         await stopClicker();
-      } else {
-        await startClicker($appState.clickerSpeed, $appState.clickerButton);
+      } catch (e) {
+        error = String(e);
       }
+      return;
+    }
+
+    cancelRequested = false;
+    for (let i = startDelay; i > 0; i--) {
+      countdown = i;
+      await new Promise((r) => setTimeout(r, 1000));
+      if (cancelRequested) {
+        countdown = 0;
+        return;
+      }
+    }
+    countdown = 0;
+
+    try {
+      await startClicker($appState.clickerSpeed, $appState.clickerButton);
     } catch (e) {
       error = String(e);
     }
@@ -44,6 +70,19 @@
       bind:value={$appState.clickerSpeed}
       onchange={persist}
       disabled={$appState.clickerRunning}
+      class="accent-blue-600"
+    />
+  </label>
+
+  <label class="flex flex-col gap-1 text-sm text-neutral-600 dark:text-neutral-300">
+    Start delay: {startDelay}s
+    <input
+      type="range"
+      min="0"
+      max="10"
+      step="1"
+      bind:value={startDelay}
+      disabled={$appState.clickerRunning || countdown > 0}
       class="accent-blue-600"
     />
   </label>
@@ -76,11 +115,16 @@
 
   <button
     onclick={toggle}
-    class:bg-red-600={$appState.clickerRunning}
-    class:bg-blue-600={!$appState.clickerRunning}
-    class="rounded-lg py-2 font-semibold text-white hover:opacity-90 transition"
+    class:bg-amber-500={countdown > 0}
+    class:bg-red-600={countdown === 0 && $appState.clickerRunning}
+    class:bg-blue-600={countdown === 0 && !$appState.clickerRunning}
+    class="mt-auto rounded-lg py-2 font-semibold text-white hover:opacity-90 transition"
   >
-    {$appState.clickerRunning ? "Stop Clicker" : "Start Clicker"}
+    {#if countdown > 0}
+      Starting in {countdown}s… (click to cancel)
+    {:else}
+      {$appState.clickerRunning ? "Stop Clicker" : "Start Clicker"}
+    {/if}
   </button>
 
   {#if error}
