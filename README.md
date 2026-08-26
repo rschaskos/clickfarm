@@ -2,6 +2,8 @@
 
 Desktop autoclicker + key binder. Rust backend (Tauri 2, `enigo` for input simulation), Svelte 5 / SvelteKit + Tailwind frontend.
 
+![ClickFarm screenshot](docs/screenshot.png)
+
 ## Linux prerequisites
 
 ```bash
