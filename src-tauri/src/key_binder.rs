@@ -5,10 +5,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-pub fn spawn(
-    binds: Vec<KeyBind>,
-    running: Arc<AtomicBool>,
-) -> Result<Vec<JoinHandle<()>>, String> {
+pub fn spawn(binds: Vec<KeyBind>, running: Arc<AtomicBool>) -> Result<Vec<JoinHandle<()>>, String> {
     if binds.is_empty() {
         return Err("no keys provided".into());
     }

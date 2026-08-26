@@ -40,7 +40,12 @@ fn start_clicker(
 #[tauri::command]
 fn stop_clicker(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
     state.clicker_running.store(false, Ordering::SeqCst);
-    if let Some(handle) = state.clicker_handle.lock().map_err(|e| e.to_string())?.take() {
+    if let Some(handle) = state
+        .clicker_handle
+        .lock()
+        .map_err(|e| e.to_string())?
+        .take()
+    {
         let _ = handle.join();
     }
     emit_status(&app, &state);
